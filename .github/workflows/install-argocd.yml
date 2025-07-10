@@ -1,0 +1,105 @@
+name: Install ArgoCD on GKE
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'GKE Cluster Name'
+        required: true
+        type: string
+      cluster_zone:
+        description: 'GKE Cluster Zone'
+        required: true
+        type: string
+      project_id:
+        description: 'GCP Project ID'
+        required: true
+        type: string
+
+env:
+  GKE_CLUSTER: ${{ inputs.cluster_name }}
+  GKE_ZONE: ${{ inputs.cluster_zone }}
+  PROJECT_ID: ${{ inputs.project_id }}
+
+jobs:
+  install-argocd:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure kubectl
+      run: |
+        gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE --project $PROJECT_ID
+
+    - name: Create ArgoCD namespace
+      run: |
+        kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install ArgoCD
+      run: |
+        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    - name: Wait for ArgoCD to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n argocd
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-redis -n argocd
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
+
+    - name: Get ArgoCD admin password
+      id: argocd-password
+      run: |
+        ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+        echo "::add-mask::$ARGOCD_PASSWORD"
+        echo "password=$ARGOCD_PASSWORD" >> $GITHUB_OUTPUT
+
+    - name: Create ArgoCD server service (LoadBalancer)
+      run: |
+        kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+    - name: Wait for external IP
+      run: |
+        echo "Waiting for external IP..."
+        kubectl wait --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=300s service/argocd-server -n argocd
+
+    - name: Get ArgoCD server URL
+      id: argocd-url
+      run: |
+        EXTERNAL_IP=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "ArgoCD server URL: https://$EXTERNAL_IP"
+        echo "url=https://$EXTERNAL_IP" >> $GITHUB_OUTPUT
+
+    - name: Apply ArgoCD applications
+      run: |
+        if [ -d "argocd/apps" ]; then
+          kubectl apply -f argocd/apps/ -n argocd
+        fi
+
+    - name: Installation summary
+      run: |
+        echo "🎉 ArgoCD installation completed successfully!"
+        echo "📋 Installation Details:"
+        echo "- Cluster: $GKE_CLUSTER"
+        echo "- Zone: $GKE_ZONE"
+        echo "- Project: $PROJECT_ID"
+        echo "- ArgoCD URL: ${{ steps.argocd-url.outputs.url }}"
+        echo "- Admin username: admin"
+        echo "- Admin password: ${{ steps.argocd-password.outputs.password }}"
+        echo ""
+        echo "🔐 Security Note: Change the admin password after first login!"
+        echo "🌐 Access ArgoCD at: ${{ steps.argocd-url.outputs.url }}"
