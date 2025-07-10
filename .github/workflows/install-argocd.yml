@@ -2,19 +2,19 @@ name: Install ArgoCD on GKE
 
 on:
   workflow_dispatch:
-    inputs:
-      cluster_name:
-        description: 'GKE Cluster Name'
-        required: true
-        type: string
-      cluster_zone:
-        description: 'GKE Cluster Zone'
-        required: true
-        type: string
-      project_id:
-        description: 'GCP Project ID'
-        required: true
-        type: string
+    # inputs:
+    #   cluster_name:
+    #     description: 'GKE Cluster Name'
+    #     required: true
+    #     type: string
+    #   cluster_zone:
+    #     description: 'GKE Cluster Zone'
+    #     required: true
+    #     type: string
+    #   project_id:
+    #     description: 'GCP Project ID'
+    #     required: true
+    #     type: string
 
 env:
   GKE_CLUSTER: juangar-sandbox-gke-cluster
