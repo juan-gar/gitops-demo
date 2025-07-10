@@ -17,9 +17,9 @@ on:
         type: string
 
 env:
-  GKE_CLUSTER: ${{ inputs.cluster_name }}
-  GKE_ZONE: ${{ inputs.cluster_zone }}
-  PROJECT_ID: ${{ inputs.project_id }}
+  GKE_CLUSTER: juangar-sandbox-gke-cluster
+  GKE_ZONE: us-central1
+  PROJECT_ID: juangar-sandbox
 
 jobs:
   install-argocd:
@@ -36,7 +36,7 @@ jobs:
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        credentials_json: ${{ secrets.GKE_SA }}
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
