@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/gitops-demo.git
+    repoURL: https://github.com/juan-gar/gitops-demo.git
     targetRevision: HEAD
     path: apps/demo-app/overlays/production
   destination:
