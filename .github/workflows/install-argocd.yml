@@ -17,9 +17,9 @@ on:
     #     type: string
 
 env:
-  GKE_CLUSTER: juangar-sandbox-gke-cluster
+  GKE_CLUSTER: sandbox-juangar-gke-cluster
   GKE_ZONE: us-central1
-  PROJECT_ID: juangar-sandbox
+  PROJECT_ID: sandbox-juangar
 
 jobs:
   install-argocd:
